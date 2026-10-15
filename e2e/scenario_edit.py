@@ -1,0 +1,63 @@
+from folio.ui.page_view import Tool
+
+w.view.set_tool(Tool.RECT)
+drag(page_point(0, 100, 420), page_point(0, 200, 480))
+r = w.model.pages[0].overlays[-1]
+print("rect", round(r.x), round(r.y), round(r.w), round(r.h), "selected", len(w.view.selected_items()))
+w.view.set_tool(Tool.SELECT)
+w.view.select_uids([r.uid])
+pump()
+# resize from bottom-right handle (display coords == unrotated on a 0-rotation page)
+drag(page_point(0, 200, 480), page_point(0, 260, 520))
+print("resized", round(r.w), round(r.h))
+# move by dragging the body
+drag(page_point(0, 150, 450), page_point(0, 250, 450))
+print("moved", round(r.x), round(r.y))
+shot("30-edited-rect")
+w.undo()
+pump()
+r = w.model.pages[0].overlays[-1]
+print("after undo move", round(r.x), round(r.y), round(r.w))
+w.undo()
+pump()
+r = w.model.pages[0].overlays[-1]
+print("after undo resize", round(r.w), round(r.h))
+# text: create, then double-click to edit again
+w.view.set_tool(Tool.TEXT)
+QTest.mouseClick(w.view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, page_point(0, 320, 300))
+pump()
+type_text("Premier")
+QTest.keyClick(w.view.viewport(), Qt.Key.Key_Escape)
+pump()
+t = w.model.pages[0].overlays[-1]
+w.view.set_tool(Tool.SELECT)
+p = page_point(0, t.x + 10, t.y + 8)
+print("items at p", [type(i).__name__ for i in w.view.items(p)], "sel", [o.kind for o in w.view.selected_overlays()])
+# a real double-click starts with a press (QTest.mouseDClick only sends the dblclick)
+QTest.mouseClick(w.view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, p)
+QTest.mouseDClick(w.view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, p)
+it = w.view.pages[0].overlay_items[t.uid]
+print("editing:", it.editor is not None, "session", w.view._text_session)
+pump()
+type_text(" et second")
+shot("31-reediting")
+QTest.mouseClick(w.view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, page_point(0, 500, 200))
+pump()
+print("text now:", repr(w.model.pages[0].overlays[-1].text), "undo ok:", w.model.can_undo())
+w.undo()
+pump()
+print("after undo:", repr(w.model.pages[0].overlays[-1].text))
+# empty text box is discarded
+w.view.set_tool(Tool.TEXT)
+n = len(w.model.pages[0].overlays)
+QTest.mouseClick(w.view.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, page_point(0, 320, 340))
+pump()
+QTest.keyClick(w.view.viewport(), Qt.Key.Key_Escape)
+pump()
+print("empty discarded:", len(w.model.pages[0].overlays) == n)
+# delete with keyboard
+w.view.set_tool(Tool.SELECT)
+w.view.select_uids([w.model.pages[0].overlays[-1].uid])
+QTest.keyClick(w.view.viewport(), Qt.Key.Key_Delete)
+pump()
+print("after delete:", len(w.model.pages[0].overlays))
